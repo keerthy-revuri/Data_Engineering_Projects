@@ -9,27 +9,41 @@ import json
 
 class SQL_Leetcode_repo:
     def __init__(self, configs):
+        """
+                initialises url, configs , token
+        """
         self.configs = configs
         self.github_token = self.configs.get('export_config', 'GITHUB_TOKEN')
         self.url = self.configs.get('export_config', 'GITHUB_API_URL')
 
     def extract(self):
+        """
+        extracts the data from Github repository
+        """
         # Headers for authentication (if needed)
         # headers = {
         #     'Authorization': f'token {self.token}'
         # }
-        response = requests.get(self.url)
+        try:
+            response = requests.get(self.url)
+        except Exception as e:
+            print("There is an issue requesting data from url ")
+            raise e
         git_contents_json_data = response.json()
+
         # print(f"type of git_contents_json_data - {type(git_contents_json_data)}")
         # print(git_contents_json_data)
         return git_contents_json_data
 
     def transform(self,git_contents_json_data):
+        """
+            transforms the data extracted from Github repository
+        """
         folder_contents = {}
-        for c in git_contents_json_data:
-            if c['type'] == 'dir':
-                name = c['name']
-                folder_contents[c['name']] = f'{self.url}/{name}'
+        for content in git_contents_json_data:
+            if content['type'] == 'dir':
+                name = content['name']
+                folder_contents[content['name']] = f'{self.url}/{name}'
         list_of_dicts = []
         for key, value in folder_contents.items():
             url = value
@@ -51,7 +65,7 @@ class SQL_Leetcode_repo:
 
         df = pd.DataFrame(list_of_dicts)
         current_timestamp = datetime.now()
-        df['Timestamp'] = current_timestamp
+        df['updated_dtm'] = current_timestamp
         output_directory = 'C:/Users/Public/dataeng_project_output/Github_data_to_excel'
         sub_directory = 'output'
         output_path = os.path.join(output_directory, sub_directory)
@@ -65,6 +79,9 @@ class SQL_Leetcode_repo:
     #def load(self):
 
     def load(self):
+        """
+            Loads the data into postgresql table
+        """
         try:
             sql_file_path = self.configs.get('export_config', 'sql_file_Path')
 
@@ -87,8 +104,12 @@ class SQL_Leetcode_repo:
         # Execute each SQL statement
         for stmt in sql_statements:
             print(f"stmt - {stmt}")
-            cur.execute(stmt)
-            conn.commit()
+            try:
+                cur.execute(stmt)
+                conn.commit()
+            except Exception as e:
+                print("An error occured while executing the statement ")
+                raise e
 
         # Close the cursor
         cur.close()
@@ -97,7 +118,9 @@ class SQL_Leetcode_repo:
         conn.close()
 
     def get_connection(self):
-
+        """
+            connect to postgresql
+        """
         try:
             db_host = self.configs.get('database_configuration', 'host')
             db_port = self.configs.getint('database_configuration', 'port')
